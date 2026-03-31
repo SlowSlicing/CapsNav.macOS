@@ -23,6 +23,7 @@ DerivedData/
 # Local editor / agent metadata
 .claude/
 .superpowers/
+.worktrees/
 
 # Local signing overrides
 Config/LocalSigning.xcconfig
