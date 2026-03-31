@@ -8,6 +8,7 @@
 
 /* Begin PBXFileReference section */
 		BCE1A6E02F722DC000FB015F /* Caps Nav.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Caps Nav.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C0F1A6103A31000100ABC002 /* Caps Nav Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Caps Nav Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0F1A6003A31000100ABC002 /* Shared.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Shared.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -15,6 +16,11 @@
 		BCE1A6E22F722DC000FB015F /* Caps Nav */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Caps Nav";
+			sourceTree = "<group>";
+		};
+		C0F1A6113A31000100ABC002 /* Caps Nav Tests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "Caps Nav Tests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -27,13 +33,31 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0F1A6123A31000100ABC002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXContainerItemProxy section */
+		C0F1A6153A31000100ABC002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = BCE1A6D82F722DC000FB015F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = BCE1A6DF2F722DC000FB015F;
+			remoteInfo = "Caps Nav";
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXGroup section */
 		BCE1A6D72F722DC000FB015F = {
 			isa = PBXGroup;
 			children = (
 				BCE1A6E22F722DC000FB015F /* Caps Nav */,
+				C0F1A6113A31000100ABC002 /* Caps Nav Tests */,
 				C0F1A6003A31000100ABC001 /* Config */,
 				BCE1A6E12F722DC000FB015F /* Products */,
 			);
@@ -43,6 +67,7 @@
 			isa = PBXGroup;
 			children = (
 				BCE1A6E02F722DC000FB015F /* Caps Nav.app */,
+				C0F1A6103A31000100ABC002 /* Caps Nav Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -80,6 +105,29 @@
 			productReference = BCE1A6E02F722DC000FB015F /* Caps Nav.app */;
 			productType = "com.apple.product-type.application";
 		};
+		C0F1A6173A31000100ABC002 /* Caps Nav Tests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C0F1A61A3A31000100ABC002 /* Build configuration list for PBXNativeTarget "Caps Nav Tests" */;
+			buildPhases = (
+				C0F1A6133A31000100ABC002 /* Sources */,
+				C0F1A6123A31000100ABC002 /* Frameworks */,
+				C0F1A6143A31000100ABC002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C0F1A6163A31000100ABC002 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				C0F1A6113A31000100ABC002 /* Caps Nav Tests */,
+			);
+			name = "Caps Nav Tests";
+			packageProductDependencies = (
+			);
+			productName = "Caps Nav Tests";
+			productReference = C0F1A6103A31000100ABC002 /* Caps Nav Tests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -92,6 +140,10 @@
 				TargetAttributes = {
 					BCE1A6DF2F722DC000FB015F = {
 						CreatedOnToolsVersion = 26.3;
+					};
+					C0F1A6173A31000100ABC002 = {
+						CreatedOnToolsVersion = 26.3;
+						TestTargetID = BCE1A6DF2F722DC000FB015F;
 					};
 				};
 			};
@@ -110,12 +162,20 @@
 			projectRoot = "";
 			targets = (
 				BCE1A6DF2F722DC000FB015F /* Caps Nav */,
+				C0F1A6173A31000100ABC002 /* Caps Nav Tests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
 		BCE1A6DE2F722DC000FB015F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C0F1A6143A31000100ABC002 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -132,7 +192,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C0F1A6133A31000100ABC002 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		C0F1A6163A31000100ABC002 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = BCE1A6DF2F722DC000FB015F /* Caps Nav */;
+			targetProxy = C0F1A6153A31000100ABC002 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		BCE1A6E92F722DC200FB015F /* Debug */ = {
@@ -321,6 +396,54 @@
 			};
 			name = Release;
 		};
+		C0F1A6183A31000100ABC002 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0F1A6003A31000100ABC002 /* Shared.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Caps Nav Tests";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.slowslicing.capsnavTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Caps Nav.app/Contents/MacOS/Caps Nav";
+				TEST_TARGET_NAME = "Caps Nav";
+			};
+			name = Debug;
+		};
+		C0F1A6193A31000100ABC002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C0F1A6003A31000100ABC002 /* Shared.xcconfig */;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_APP_SANDBOX = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Caps Nav Tests";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@loader_path/../Frameworks",
+					"@loader_path/Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 13.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.slowslicing.capsnavTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Caps Nav.app/Contents/MacOS/Caps Nav";
+				TEST_TARGET_NAME = "Caps Nav";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -338,6 +461,15 @@
 			buildConfigurations = (
 				BCE1A6EC2F722DC200FB015F /* Debug */,
 				BCE1A6ED2F722DC200FB015F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C0F1A61A3A31000100ABC002 /* Build configuration list for PBXNativeTarget "Caps Nav Tests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C0F1A6183A31000100ABC002 /* Debug */,
+				C0F1A6193A31000100ABC002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

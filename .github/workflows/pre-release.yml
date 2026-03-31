@@ -1,42 +1,115 @@
-name: Build Pre-Release
+name: Publish Release Assets
 
 on:
-  # 手动触发，避免每次 push 都自动发包。
+  release:
+    types:
+      - published
+      - prereleased
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 用于校验 tag 所属历史的分支名
+        required: true
+        default: main
+        type: string
+      tag:
+        description: 目标 Release tag，例如 v0.0.2
+        required: true
+        type: string
+      publish_latest:
+        description: 是否覆盖 docs/updates/latest.json
+        required: true
+        default: false
+        type: boolean
 
 permissions:
-  # 需要写权限来创建 tag、创建 release、上传 release assets。
   contents: write
 
 jobs:
-  pre-release:
-    name: Build Pre-Release
-    # 必须使用 macOS runner，因为打包脚本依赖 xcodebuild、hdiutil 等 macOS 工具。
+  publish-release-assets:
+    name: Build Release Assets
     runs-on: macos-latest
 
     steps:
-      # 第一步：拉取完整仓库历史。
-      # WHY：后面创建 release/tag 时，完整 git 上下文更稳，也便于未来扩展版本比较逻辑。
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # 第二步：执行 dev 打包。
-      # 这里显式关闭 Apple 开发签名依赖，改为走 unsigned dev 路径。
-      # 打包脚本会自动补一层 ad-hoc bundle 签名，让权限与应用身份仍可被系统稳定识别，
-      # 同时仍然不需要 Apple ID、本地证书。
+      - name: Resolve release metadata
+        id: release
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            let release;
+            let targetBranch;
+            let publishLatest;
+
+            if (context.eventName === 'release') {
+              release = context.payload.release;
+              targetBranch = 'main';
+              publishLatest = 'true';
+            } else {
+              const tag = core.getInput('tag');
+              release = (await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              })).data;
+              targetBranch = core.getInput('branch') || 'main';
+              publishLatest = core.getInput('publish_latest') || 'false';
+            }
+
+            core.setOutput('release_id', String(release.id));
+            core.setOutput('release_name', release.name || release.tag_name);
+            core.setOutput('tag', release.tag_name);
+            core.setOutput('page_url', release.html_url);
+            core.setOutput('published_at', release.published_at || '');
+            core.setOutput('notes_markdown', release.body || '');
+            core.setOutput('target_branch', targetBranch);
+            core.setOutput('publish_latest', publishLatest);
+
+      - name: Validate tag belongs to target branch
+        id: validate
+        env:
+          TARGET_BRANCH: ${{ steps.release.outputs.target_branch }}
+          TARGET_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git fetch origin "$TARGET_BRANCH" --tags
+
+          tag_commit="$(git rev-list -n 1 "$TARGET_TAG")"
+          if [[ -z "$tag_commit" ]]; then
+            echo "未找到 tag：$TARGET_TAG" >&2
+            exit 1
+          fi
+
+          if ! git merge-base --is-ancestor "$tag_commit" "origin/$TARGET_BRANCH"; then
+            echo "Tag $TARGET_TAG 不属于 origin/$TARGET_BRANCH 历史，拒绝继续发布。" >&2
+            exit 1
+          fi
+
+          echo "tag_commit=$tag_commit" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout tag commit
+        env:
+          TARGET_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git checkout --detach "$TARGET_TAG"
+
       - name: Build unsigned dev package
         env:
           CAPS_NAV_DEV_DISABLE_SIGNING: "1"
         run: |
           chmod +x ./tools/package.sh
-          ./tools/package.sh --mode dev --unsigned-dev
+          ./tools/package.sh --mode dev --unsigned-dev --headless-dmg
 
-      # 第三步：从实际构建产物里读取版本信息和产物路径。
-      # WHY：版本号以工程配置为准，避免手填版本造成 tag / release / 安装包名称不一致。
-      - name: Read release metadata
-        id: metadata
+      - name: Read build metadata
+        id: build
         shell: bash
         run: |
           set -euo pipefail
@@ -50,9 +123,13 @@ jobs:
           fi
 
           version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
-          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
-          tag="v${version}"
-          release_name="$tag"
+          minimum_system_version="$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$info_plist" 2>/dev/null || true)"
+          if [[ -z "$minimum_system_version" ]]; then
+            minimum_system_version="$(/usr/libexec/PlistBuddy -c 'Print :MinimumOSVersion' "$info_plist" 2>/dev/null || true)"
+          fi
+          if [[ -z "$minimum_system_version" ]]; then
+            minimum_system_version="13.0"
+          fi
 
           dmg_path="$(find artifacts/dev -maxdepth 1 -type f -name '*.dmg' ! -name '*.sha256' | head -n 1)"
           if [[ -z "$dmg_path" ]]; then
@@ -68,81 +145,18 @@ jobs:
 
           {
             echo "version=$version"
-            echo "build=$build"
-            echo "tag=$tag"
-            echo "release_name=$release_name"
+            echo "minimum_system_version=$minimum_system_version"
             echo "dmg_path=$dmg_path"
             echo "sha_path=$sha_path"
           } >> "$GITHUB_OUTPUT"
 
-      # 第四步：先检查同名 tag 是否已经存在。
-      # WHY：你约定每个版本只对应一个 v版本号，如果重复发布同名 tag，语义会混乱。
-      - name: Ensure tag does not already exist
-        uses: actions/github-script@v7
-        env:
-          TAG_NAME: ${{ steps.metadata.outputs.tag }}
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const tag = process.env.TAG_NAME;
-
-            try {
-              await github.rest.git.getRef({
-                owner,
-                repo,
-                ref: `tags/${tag}`,
-              });
-
-              core.setFailed(`Tag ${tag} 已存在。请先更新工程版本号，再重新运行工作流。`);
-            } catch (error) {
-              if (error.status !== 404) {
-                throw error;
-              }
-            }
-
-      # 第五步：创建 GitHub pre-release。
-      # 这里会自动创建同名 tag，并把 release 标记为 pre-release，
-      # 同时启用 GitHub 自动生成 release notes，再补一段固定说明给用户。
-      - name: Create GitHub pre-release
-        id: create_release
-        uses: actions/github-script@v7
-        env:
-          TAG_NAME: ${{ steps.metadata.outputs.tag }}
-          RELEASE_NAME: ${{ steps.metadata.outputs.release_name }}
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const tag = process.env.TAG_NAME;
-            const releaseName = process.env.RELEASE_NAME;
-            const intro = [
-              '这是一个基于 Release 构建的 dev 预发布安装包。',
-              '它不包含 Developer ID 正式签名、公证和票据贴附。',
-              '首次打开时，macOS 可能提示安全拦截；请按 README 和 docs 中的说明处理。',
-              '',
-            ].join('\n');
-
-            const release = await github.rest.repos.createRelease({
-              owner,
-              repo,
-              tag_name: tag,
-              target_commitish: context.sha,
-              name: releaseName,
-              prerelease: true,
-              generate_release_notes: true,
-              body: intro,
-            });
-
-            core.setOutput('release_id', String(release.data.id));
-            core.setOutput('release_url', release.data.html_url);
-
-      # 第六步：上传安装包和 SHA-256 校验文件。
-      # WHY：release 只有页面还不够，真正让用户下载的是这两个 asset。
       - name: Upload release assets
+        id: assets
         uses: actions/github-script@v7
         env:
-          RELEASE_ID: ${{ steps.create_release.outputs.release_id }}
-          DMG_PATH: ${{ steps.metadata.outputs.dmg_path }}
-          SHA_PATH: ${{ steps.metadata.outputs.sha_path }}
+          RELEASE_ID: ${{ steps.release.outputs.release_id }}
+          DMG_PATH: ${{ steps.build.outputs.dmg_path }}
+          SHA_PATH: ${{ steps.build.outputs.sha_path }}
         with:
           script: |
             const fs = require('fs');
@@ -151,14 +165,36 @@ jobs:
             const releaseId = Number(process.env.RELEASE_ID);
             const files = [process.env.DMG_PATH, process.env.SHA_PATH];
 
-            for (const filePath of files) {
-              const data = fs.readFileSync(filePath);
-
-              await github.rest.repos.uploadReleaseAsset({
+            const existingAssets = await github.paginate(
+              github.rest.repos.listReleaseAssets,
+              {
                 owner,
                 repo,
                 release_id: releaseId,
-                name: path.basename(filePath),
+                per_page: 100,
+              }
+            );
+
+            const uploadedAssets = {};
+
+            for (const filePath of files) {
+              const assetName = path.basename(filePath);
+              const existingAsset = existingAssets.find((asset) => asset.name === assetName);
+
+              if (existingAsset) {
+                await github.rest.repos.deleteReleaseAsset({
+                  owner,
+                  repo,
+                  asset_id: existingAsset.id,
+                });
+              }
+
+              const data = fs.readFileSync(filePath);
+              const uploaded = await github.rest.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id: releaseId,
+                name: assetName,
                 data,
                 headers: {
                   'content-type': filePath.endsWith('.sha256')
@@ -167,19 +203,86 @@ jobs:
                   'content-length': data.length,
                 },
               });
+
+              uploadedAssets[assetName] = uploaded.data.browser_download_url;
             }
 
-      # 第七步：把本次发布结果写到 Actions 的摘要页里。
-      # WHY：这样你点开工作流结果时，不用翻日志就能看到 release 链接和产物信息。
+            core.setOutput('dmg_url', uploadedAssets[path.basename(process.env.DMG_PATH)]);
+            core.setOutput('sha_url', uploadedAssets[path.basename(process.env.SHA_PATH)]);
+
+      - name: Checkout main branch for Pages update
+        if: ${{ steps.release.outputs.publish_latest == 'true' }}
+        run: |
+          set -euo pipefail
+          git checkout main
+          git pull --ff-only origin main
+
+      - name: Compare versions before publishing latest metadata
+        if: ${{ steps.release.outputs.publish_latest == 'true' }}
+        env:
+          CANDIDATE_VERSION: ${{ steps.build.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && -f "docs/updates/latest.json" ]]; then
+            node .github/scripts/generate-update-json.js compare \
+              --candidate "$CANDIDATE_VERSION" \
+              --current-file "docs/updates/latest.json"
+          fi
+
+      - name: Generate latest update metadata
+        if: ${{ steps.release.outputs.publish_latest == 'true' }}
+        env:
+          VERSION: ${{ steps.build.outputs.version }}
+          PUBLISHED_AT: ${{ steps.release.outputs.published_at }}
+          MINIMUM_SYSTEM_VERSION: ${{ steps.build.outputs.minimum_system_version }}
+          PAGE_URL: ${{ steps.release.outputs.page_url }}
+          DOWNLOAD_URL: ${{ steps.assets.outputs.dmg_url }}
+          NOTES_MARKDOWN: ${{ steps.release.outputs.notes_markdown }}
+        run: |
+          set -euo pipefail
+
+          mkdir -p docs/updates
+
+          node .github/scripts/generate-update-json.js generate \
+            --output "docs/updates/latest.json" \
+            --version "$VERSION" \
+            --published-at "$PUBLISHED_AT" \
+            --minimum-system-version "$MINIMUM_SYSTEM_VERSION" \
+            --page-url "$PAGE_URL" \
+            --download-url "$DOWNLOAD_URL" \
+            --notes-markdown "$NOTES_MARKDOWN"
+
+      - name: Commit latest metadata back to main
+        if: ${{ steps.release.outputs.publish_latest == 'true' }}
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/updates/latest.json
+
+          if git diff --cached --quiet; then
+            echo "latest.json 无变更，跳过提交。"
+            exit 0
+          fi
+
+          git commit -m "chore: update latest release metadata"
+          git push origin HEAD:main
+
       - name: Write workflow summary
         run: |
           {
-            echo "### Dev 预发布已创建"
+            echo "### Release 产物已处理"
             echo
-            echo "- Release: [${{ steps.metadata.outputs.release_name }}](${{ steps.create_release.outputs.release_url }})"
-            echo "- Tag: \`${{ steps.metadata.outputs.tag }}\`"
-            echo "- Version: \`${{ steps.metadata.outputs.version }}\`"
-            echo "- Build: \`${{ steps.metadata.outputs.build }}\`"
-            echo "- DMG: \`${{ steps.metadata.outputs.dmg_path }}\`"
-            echo "- SHA-256: \`${{ steps.metadata.outputs.sha_path }}\`"
+            echo "- Release: [${{ steps.release.outputs.release_name }}](${{ steps.release.outputs.page_url }})"
+            echo "- Tag: \`${{ steps.release.outputs.tag }}\`"
+            echo "- Version: \`${{ steps.build.outputs.version }}\`"
+            echo "- Target Branch: \`${{ steps.release.outputs.target_branch }}\`"
+            echo "- Publish Latest: \`${{ steps.release.outputs.publish_latest }}\`"
+            echo "- DMG: [下载地址](${{ steps.assets.outputs.dmg_url }})"
+            if [[ "${{ steps.release.outputs.publish_latest }}" == "true" ]]; then
+              echo "- latest.json: \`docs/updates/latest.json\`"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"

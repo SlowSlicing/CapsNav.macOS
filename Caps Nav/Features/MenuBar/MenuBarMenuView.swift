@@ -60,6 +60,12 @@ struct MenuBarMenuView: View {
                 Label("快捷键练习", systemImage: "gamecontroller.fill")
             }
 
+            Button {
+                appBootstrap.checkForUpdates()
+            } label: {
+                Label("检查更新", systemImage: "arrow.triangle.2.circlepath.circle.fill")
+            }
+
             if appBootstrap.accessibilityStatus != .trusted {
                 Button {
                     appBootstrap.requestAccessibilityPermission()

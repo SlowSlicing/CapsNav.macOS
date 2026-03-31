@@ -3,6 +3,11 @@ import Combine
 import Foundation
 import OSLog
 
+private enum AppUpdateCheckTrigger: Equatable {
+    case automatic
+    case manual
+}
+
 @MainActor
 final class AppBootstrap: ObservableObject {
     private static let globalToggleShortcutMissingModifierMessage = "全局开关快捷键至少要包含一个修饰键。"
@@ -21,6 +26,9 @@ final class AppBootstrap: ObservableObject {
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var globalToggleHotKeyRegistrationStatus: GlobalToggleHotKeyRegistrationStatus = .unconfigured
     @Published private(set) var usageStatistics: UsageStatistics = .default
+    @Published private(set) var lastUpdateCheckDate: Date?
+    @Published private(set) var lastUpdateCheckStatusDescription = "尚未检查更新"
+    @Published private(set) var availableUpdateInfo: AppUpdateInfo?
 
     let environment: AppEnvironment
 
@@ -44,6 +52,8 @@ final class AppBootstrap: ObservableObject {
     private let prefixIndicatorController: PrefixIndicatorController
     private let initialSetupCoordinator: InitialSetupCoordinator
     private let onboardingWindowController: OnboardingWindowController
+    private let appUpdateService: AppUpdateService
+    private let updateAvailableWindowController: UpdateAvailableWindowController
     private let logger = AppLogger.make(category: "AppBootstrap")
     private lazy var terminationCoordinator = ApplicationTerminationCoordinator(
         cleanup: { [weak self] in
@@ -58,7 +68,9 @@ final class AppBootstrap: ObservableObject {
     private var isSettingsWindowPresented = false
     private var isAccessibilityPermissionPromptPresented = false
     private var isShortcutTrainerWindowPresented = false
+    private var isUpdateWindowPresented = false
     private var activationObserver: NSObjectProtocol?
+    private var lastPresentedUpdateVersion: String?
 
     init(fileManager: FileManager = .default, bundle: Bundle = .main) {
         let environment = AppEnvironment(fileManager: fileManager, bundle: bundle)
@@ -96,6 +108,7 @@ final class AppBootstrap: ObservableObject {
             profileLoader: profileLoader,
             defaultProfileProvider: DefaultProfileProvider(bundle: bundle)
         )
+        let appUpdateService = AppUpdateService(feedURL: AppUpdateService.defaultFeedURL)
 
         self.environment = environment
         self.settingsStore = settingsStore
@@ -118,6 +131,8 @@ final class AppBootstrap: ObservableObject {
         self.prefixIndicatorController = prefixIndicatorController
         self.initialSetupCoordinator = initialSetupCoordinator
         self.onboardingWindowController = OnboardingWindowController.shared
+        self.appUpdateService = appUpdateService
+        self.updateAvailableWindowController = UpdateAvailableWindowController()
 
         self.keyEventInterceptor.activeProfileProvider = { [weak self] in
             self?.activeProfile
@@ -211,6 +226,10 @@ final class AppBootstrap: ObservableObject {
         settings.menuBarIconStyle
     }
 
+    var currentAppVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.0.0"
+    }
+
     var requiresLaunchAtLoginApproval: Bool {
         launchAtLoginStatus == .requiresApproval
     }
@@ -276,6 +295,7 @@ final class AppBootstrap: ObservableObject {
             logger.info("App bootstrap completed. activeProfile=\(self.activeProfileID, privacy: .public)")
 
             showOnboardingIfNeeded()
+            scheduleAutomaticUpdateCheckIfNeeded()
         } catch {
             startupState = .failed
             lastErrorMessage = error.localizedDescription
@@ -533,6 +553,121 @@ final class AppBootstrap: ObservableObject {
 
     private func updateOnboardingPermissionStatusIfNeeded() {
         onboardingWindowController.updatePermissionStatus(accessibilityStatus)
+    }
+
+    private func scheduleAutomaticUpdateCheckIfNeeded() {
+        guard settings.hasCompletedOnboarding else {
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 6) { [weak self] in
+            Task { @MainActor [weak self] in
+                await self?.performUpdateCheck(trigger: .automatic)
+            }
+        }
+    }
+
+    private func performUpdateCheck(trigger: AppUpdateCheckTrigger) async {
+        let currentVersion = AppVersion(currentAppVersion)
+        let result = await appUpdateService.fetchLatestUpdate(currentVersion: currentVersion)
+        lastUpdateCheckDate = Date()
+
+        switch result {
+        case .noUpdate:
+            availableUpdateInfo = nil
+            lastUpdateCheckStatusDescription = "当前已是最新版本"
+
+            if trigger == .manual {
+                presentUpdateStatusAlert(
+                    title: "Caps Nav 已是最新版本",
+                    message: "当前版本 \(currentAppVersion) 已经是最新版本。"
+                )
+            }
+
+        case let .updateAvailable(info):
+            availableUpdateInfo = info
+
+            let isSystemCompatible = info.minimumSupportedSystemVersion.map {
+                ProcessInfo.processInfo.isOperatingSystemAtLeast($0)
+            } ?? true
+
+            lastUpdateCheckStatusDescription = isSystemCompatible
+                ? "发现新版本 \(info.version)"
+                : "发现新版本 \(info.version)，但当前系统版本不满足要求"
+
+            if trigger == .automatic, lastPresentedUpdateVersion == info.version {
+                return
+            }
+
+            presentAvailableUpdateWindow(
+                updateInfo: info,
+                isSystemCompatible: isSystemCompatible
+            )
+
+        case let .invalidPayload(message):
+            lastUpdateCheckStatusDescription = "更新源格式无效"
+            logger.error("Invalid update payload: \(message, privacy: .public)")
+
+            if trigger == .manual {
+                presentUpdateStatusAlert(
+                    title: "检查更新失败",
+                    message: "更新源格式无效，请稍后重试。"
+                )
+            }
+
+        case let .failed(message):
+            lastUpdateCheckStatusDescription = "检查更新失败"
+            logger.error("Failed to fetch update feed: \(message, privacy: .public)")
+
+            if trigger == .manual {
+                presentUpdateStatusAlert(
+                    title: "检查更新失败",
+                    message: message
+                )
+            }
+        }
+    }
+
+    private func presentAvailableUpdateWindow(
+        updateInfo: AppUpdateInfo,
+        isSystemCompatible: Bool
+    ) {
+        prepareToOpenSettingsWindow()
+        isUpdateWindowPresented = true
+        lastPresentedUpdateVersion = updateInfo.version
+
+        updateAvailableWindowController.show(
+            currentVersion: currentAppVersion,
+            updateInfo: updateInfo,
+            isSystemCompatible: isSystemCompatible,
+            onDownload: { [weak self] in
+                self?.openAvailableUpdateDownload()
+            },
+            onOpenReleasePage: { [weak self] in
+                self?.openAvailableUpdateReleasePage()
+            },
+            onClose: { [weak self] in
+                self?.handleUpdateWindowDidClose()
+            }
+        )
+    }
+
+    private func presentUpdateStatusAlert(title: String, message: String) {
+        prepareToOpenSettingsWindow()
+
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = title
+        alert.informativeText = message
+        alert.addButton(withTitle: "知道了")
+        alert.runModal()
+
+        restoreAccessoryActivationPolicyIfNeeded()
+    }
+
+    private func handleUpdateWindowDidClose() {
+        isUpdateWindowPresented = false
+        restoreAccessoryActivationPolicyIfNeeded()
     }
 
     private func handleTriggerRecorded(signature: String) {
@@ -939,6 +1074,28 @@ final class AppBootstrap: ObservableObject {
         }
     }
 
+    func checkForUpdates() {
+        Task { @MainActor [weak self] in
+            await self?.performUpdateCheck(trigger: .manual)
+        }
+    }
+
+    func openAvailableUpdateDownload() {
+        guard let availableUpdateInfo else {
+            return
+        }
+
+        NSWorkspace.shared.open(availableUpdateInfo.downloadURL)
+    }
+
+    func openAvailableUpdateReleasePage() {
+        guard let availableUpdateInfo else {
+            return
+        }
+
+        NSWorkspace.shared.open(availableUpdateInfo.pageURL)
+    }
+
     @discardableResult
     func renameProfile(profileID: String, to newName: String) -> Bool {
         let normalizedProfileName = newName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1296,7 +1453,8 @@ final class AppBootstrap: ObservableObject {
     private func restoreAccessoryActivationPolicyIfNeeded() {
         guard !isSettingsWindowPresented,
               !isShortcutTrainerWindowPresented,
-              !isAccessibilityPermissionPromptPresented else {
+              !isAccessibilityPermissionPromptPresented,
+              !isUpdateWindowPresented else {
             return
         }
 

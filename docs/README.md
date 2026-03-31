@@ -24,6 +24,7 @@
 
 - [从源码构建与打包](release/从源码构建与打包.md)
 - [发布与打包](release/发布与打包.md)
+- [更新元数据目录说明](updates/README.md)
 - [测试计划](testing/测试计划.md)
 
 ## 我想继续理解实现

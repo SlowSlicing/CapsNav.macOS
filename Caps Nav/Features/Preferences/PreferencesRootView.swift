@@ -66,6 +66,13 @@ private enum SettingsPane: String, CaseIterable, Identifiable {
 }
 
 private let settingsMappingEffectPreviewCoordinateSpaceName = "settingsMappingEffectPreviewCoordinateSpace"
+private let settingsUpdateCheckDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: "zh_CN")
+    formatter.dateStyle = .medium
+    formatter.timeStyle = .short
+    return formatter
+}()
 
 private struct SettingsMappingEffectFloatingPreview: Equatable {
     let id: String
@@ -939,6 +946,61 @@ struct PreferencesRootView: View {
             }
 
             SettingsCard(
+                title: "软件更新",
+                symbolName: "arrow.triangle.2.circlepath.circle.fill",
+                hint: "Caps Nav 会从 GitHub Pages 上的最新版本描述中检查更新，并直接展示你在 GitHub Release 里手写的更新说明。"
+            ) {
+                HStack(alignment: .top, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("当前版本")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(CapsNavTheme.textMuted)
+
+                        Text(appBootstrap.currentAppVersion)
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                            .foregroundStyle(CapsNavTheme.textPrimary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("最近检查")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(CapsNavTheme.textMuted)
+
+                        Text(lastUpdateCheckDateText)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(CapsNavTheme.textPrimary)
+                    }
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("当前状态")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundStyle(CapsNavTheme.textMuted)
+
+                        Text(appBootstrap.lastUpdateCheckStatusDescription)
+                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                            .foregroundStyle(CapsNavTheme.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        dismissEditing()
+                        appBootstrap.checkForUpdates()
+                    } label: {
+                        Label("检查更新", systemImage: "arrow.clockwise")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(CapsNavTheme.accentStrong)
+                }
+
+                SettingsInlineNotice(
+                    text: "首次版本只负责检查新版本、展示 Markdown 更新说明，并跳转到下载页；不会自动下载安装。",
+                    tone: .accent
+                )
+            }
+
+            SettingsCard(
                 title: "存储路径",
                 symbolName: "folder.badge.gearshape",
                 hint: "这些路径用于定位 settings.json 和配置方案数据，方便后续排查或手动编辑配置。"
@@ -1016,6 +1078,14 @@ struct PreferencesRootView: View {
                 SettingsValueRow(title: "前缀工作模式", value: appBootstrap.prefixRoutingMode.displayName)
             }
         }
+    }
+
+    private var lastUpdateCheckDateText: String {
+        guard let lastUpdateCheckDate = appBootstrap.lastUpdateCheckDate else {
+            return "本次启动尚未检查"
+        }
+
+        return settingsUpdateCheckDateFormatter.string(from: lastUpdateCheckDate)
     }
 
     private var thresholdInputBinding: Binding<String> {
