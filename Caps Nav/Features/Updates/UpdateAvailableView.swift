@@ -16,12 +16,10 @@ struct UpdateAvailableView: View {
     let onOpenReleasePage: () -> Void
     let onClose: () -> Void
 
-    private var notesAttributedString: AttributedString {
-        if let attributed = try? AttributedString(markdown: updateInfo.notesMarkdown) {
-            return attributed
-        }
-
-        return AttributedString(updateInfo.notesMarkdown)
+    private var normalizedNotesMarkdown: String {
+        updateInfo.notesMarkdown
+            .replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
     }
 
     private var publishedAtText: String {
@@ -153,11 +151,9 @@ struct UpdateAvailableView: View {
             }
 
             ScrollView {
-                Text(notesAttributedString)
-                    .font(.system(size: 15, weight: .medium, design: .rounded))
-                    .foregroundStyle(CapsNavTheme.textPrimary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                ReleaseNotesMarkdownView(markdown: normalizedNotesMarkdown)
                     .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(20)
             }
             .background(updatePanelBackground)
