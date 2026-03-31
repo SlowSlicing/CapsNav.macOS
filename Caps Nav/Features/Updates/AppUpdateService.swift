@@ -8,7 +8,7 @@ enum AppUpdateCheckResult: Equatable {
 }
 
 struct AppUpdateService {
-    static let defaultFeedURL = URL(string: "https://slowslicing.github.io/CapsNav.macOS/updates/latest.json")!
+    static let defaultFeedURL = URL(string: "https://slowslicing.me/CapsNav.macOS/updates/latest.json")!
 
     let feedURL: URL
     var urlSession: URLSession = .shared
