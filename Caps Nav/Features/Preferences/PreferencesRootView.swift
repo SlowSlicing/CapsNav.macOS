@@ -2456,7 +2456,7 @@ private struct SettingsMappingKeyMenu: View {
     var body: some View {
         Menu {
             ForEach(SettingsTriggerKeySection.allCases) { section in
-                Section(section.title) {
+                Section {
                     ForEach(section.keys, id: \.self) { key in
                         Button {
                             onSelect(key)
@@ -2469,6 +2469,8 @@ private struct SettingsMappingKeyMenu: View {
                         }
                         .disabled(unavailableKeys.contains(key))
                     }
+                } header: {
+                    Text(section.title)
                 }
             }
         } label: {
@@ -2511,7 +2513,7 @@ private struct SettingsMappingActionMenu: View {
     var body: some View {
         Menu {
             ForEach(SettingsActionSection.allCases) { section in
-                Section(section.title) {
+                Section {
                     ForEach(section.actions, id: \.self) { action in
                         Button {
                             onSelectBuiltinAction(action)
@@ -2524,10 +2526,12 @@ private struct SettingsMappingActionMenu: View {
                         }
                         .disabled(action == selectedBuiltinAction)
                     }
+                } header: {
+                    Text(section.title)
                 }
             }
 
-            Section("自定义快捷键") {
+            Section {
                 Button {
                     onEditShortcut()
                 } label: {
@@ -2537,6 +2541,8 @@ private struct SettingsMappingActionMenu: View {
                         Label("设置自定义快捷键...", systemImage: "keyboard.badge.ellipsis")
                     }
                 }
+            } header: {
+                Text("自定义快捷键")
             }
         } label: {
             SettingsMenuPill(
@@ -3193,7 +3199,7 @@ private struct SettingsShortcutKeyMenu: View {
     var body: some View {
         Menu {
             ForEach(SettingsShortcutKeySection.allCases) { section in
-                Section(section.title) {
+                Section {
                     ForEach(section.keys, id: \.self) { key in
                         Button {
                             onSelect(key)
@@ -3205,6 +3211,8 @@ private struct SettingsShortcutKeyMenu: View {
                             }
                         }
                     }
+                } header: {
+                    Text(section.title)
                 }
             }
         } label: {
