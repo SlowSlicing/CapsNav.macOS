@@ -2455,22 +2455,27 @@ private struct SettingsMappingKeyMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(SettingsTriggerKeySection.allCases) { section in
-                Section {
-                    ForEach(section.keys, id: \.self) { key in
-                        Button {
-                            onSelect(key)
-                        } label: {
-                            if key == selectedKey {
-                                Label(key.settingsDisplayTitle, systemImage: "checkmark")
-                            } else {
-                                Text(key.settingsDisplayTitle)
-                            }
+            let sections = Array(SettingsTriggerKeySection.allCases)
+
+            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                Text(section.title)
+                    .disabled(true)
+
+                ForEach(section.keys, id: \.self) { key in
+                    Button {
+                        onSelect(key)
+                    } label: {
+                        if key == selectedKey {
+                            Label(key.settingsDisplayTitle, systemImage: "checkmark")
+                        } else {
+                            Text(key.settingsDisplayTitle)
                         }
-                        .disabled(unavailableKeys.contains(key))
                     }
-                } header: {
-                    Text(section.title)
+                    .disabled(unavailableKeys.contains(key))
+                }
+
+                if index < sections.count - 1 {
+                    Divider()
                 }
             }
         } label: {
@@ -2512,37 +2517,39 @@ private struct SettingsMappingActionMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(SettingsActionSection.allCases) { section in
-                Section {
-                    ForEach(section.actions, id: \.self) { action in
-                        Button {
-                            onSelectBuiltinAction(action)
-                        } label: {
-                            if action == selectedBuiltinAction {
-                                Label(action.displayName, systemImage: "checkmark")
-                            } else {
-                                Text(action.displayName)
-                            }
+            let sections = Array(SettingsActionSection.allCases)
+
+            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                Text(section.title)
+                    .disabled(true)
+
+                ForEach(section.actions, id: \.self) { action in
+                    Button {
+                        onSelectBuiltinAction(action)
+                    } label: {
+                        if action == selectedBuiltinAction {
+                            Label(action.displayName, systemImage: "checkmark")
+                        } else {
+                            Text(action.displayName)
                         }
-                        .disabled(action == selectedBuiltinAction)
                     }
-                } header: {
-                    Text(section.title)
+                    .disabled(action == selectedBuiltinAction)
                 }
+
+                Divider()
             }
 
-            Section {
-                Button {
-                    onEditShortcut()
-                } label: {
-                    if isShortcutSelected {
-                        Label("修改自定义快捷键...", systemImage: "checkmark")
-                    } else {
-                        Label("设置自定义快捷键...", systemImage: "keyboard.badge.ellipsis")
-                    }
+            Text("自定义快捷键")
+                .disabled(true)
+
+            Button {
+                onEditShortcut()
+            } label: {
+                if isShortcutSelected {
+                    Label("修改自定义快捷键...", systemImage: "checkmark")
+                } else {
+                    Label("设置自定义快捷键...", systemImage: "keyboard.badge.ellipsis")
                 }
-            } header: {
-                Text("自定义快捷键")
             }
         } label: {
             SettingsMenuPill(
@@ -3198,21 +3205,26 @@ private struct SettingsShortcutKeyMenu: View {
 
     var body: some View {
         Menu {
-            ForEach(SettingsShortcutKeySection.allCases) { section in
-                Section {
-                    ForEach(section.keys, id: \.self) { key in
-                        Button {
-                            onSelect(key)
-                        } label: {
-                            if key == selectedKey {
-                                Label(key.capsNavDisplayKeyTitle, systemImage: "checkmark")
-                            } else {
-                                Text(key.capsNavDisplayKeyTitle)
-                            }
+            let sections = Array(SettingsShortcutKeySection.allCases)
+
+            ForEach(Array(sections.enumerated()), id: \.element.id) { index, section in
+                Text(section.title)
+                    .disabled(true)
+
+                ForEach(section.keys, id: \.self) { key in
+                    Button {
+                        onSelect(key)
+                    } label: {
+                        if key == selectedKey {
+                            Label(key.capsNavDisplayKeyTitle, systemImage: "checkmark")
+                        } else {
+                            Text(key.capsNavDisplayKeyTitle)
                         }
                     }
-                } header: {
-                    Text(section.title)
+                }
+
+                if index < sections.count - 1 {
+                    Divider()
                 }
             }
         } label: {

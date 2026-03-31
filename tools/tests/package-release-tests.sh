@@ -178,4 +178,21 @@ assert_contains "$dmg_sign_command" 'codesign --force --sign "Developer ID Appli
 dmg_gatekeeper_command="$(caps_nav_release_dmg_gatekeeper_command)"
 assert_contains "$dmg_gatekeeper_command" 'spctl -a -t open --context context:primary-signature -v "/tmp/Caps Nav Release.dmg"' "release mode should verify the dmg gatekeeper status"
 
+preferences_source="$(cat "$ROOT_DIR/Caps Nav/Features/Preferences/PreferencesRootView.swift")"
+assert_contains "$preferences_source" "private struct SettingsMappingKeyMenu" "preferences view should still contain the trigger key menu"
+assert_contains "$preferences_source" "private struct SettingsMappingActionMenu" "preferences view should still contain the action menu"
+assert_contains "$preferences_source" "private struct SettingsShortcutKeyMenu" "preferences view should still contain the shortcut key menu"
+
+if [[ "$preferences_source" == *"private struct SettingsMappingKeyMenu"* && "$preferences_source" == *$'private struct SettingsMappingKeyMenu: View {\n'* && "$preferences_source" == *$'Menu {\n            ForEach(SettingsTriggerKeySection.allCases) { section in\n                Section {'* ]]; then
+  fail "settings trigger key menu should avoid Menu+Section to stay compatible with GitHub Xcode 16"
+fi
+
+if [[ "$preferences_source" == *$'Menu {\n            ForEach(SettingsActionSection.allCases) { section in\n                Section {'* ]]; then
+  fail "settings action menu should avoid Menu+Section to stay compatible with GitHub Xcode 16"
+fi
+
+if [[ "$preferences_source" == *$'Menu {\n            ForEach(SettingsShortcutKeySection.allCases) { section in\n                Section {'* ]]; then
+  fail "settings shortcut key menu should avoid Menu+Section to stay compatible with GitHub Xcode 16"
+fi
+
 echo "package-release shell tests passed"
