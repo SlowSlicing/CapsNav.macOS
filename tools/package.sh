@@ -28,8 +28,8 @@ ATTACHED_MOUNT_POINT=""
 caps_nav_usage() {
   cat <<'EOF_USAGE'
 用法：
-  ./tools/package-release.sh [--mode <dev|release>] [--output-dir <path>] [--derived-data <path>] [--skip-sha256]
-  ./tools/package-release.sh --mode release --signing-identity <name> --team-id <id> --notary-profile <profile>
+  ./tools/package.sh [--mode <dev|release>] [--output-dir <path>] [--derived-data <path>] [--skip-sha256]
+  ./tools/package.sh --mode release --signing-identity <name> --team-id <id> --notary-profile <profile>
 
 说明：
   生成 Caps Nav 的 macOS 分发包。
@@ -114,7 +114,7 @@ caps_nav_fail_with_context() {
   fi
 
   if [[ "$details" == *"app is sandboxed"* || "$details" == *"设备未配置"* ]]; then
-    echo "当前环境无法完成 DMG 设备操作，通常是因为运行在受限沙箱中。请在你自己的 macOS 终端直接执行 ./tools/package-release.sh。" >&2
+    echo "当前环境无法完成 DMG 设备操作，通常是因为运行在受限沙箱中。请在你自己的 macOS 终端直接执行 ./tools/package.sh。" >&2
   fi
 
   echo "步骤失败：$description" >&2

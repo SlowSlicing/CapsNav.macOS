@@ -284,7 +284,7 @@ private struct AboutPanelView: View {
                         .font(.system(size: 17, weight: .semibold, design: .rounded))
                         .foregroundStyle(CapsNavTheme.textPrimary)
 
-                    Text("由 \(metadata.author) 制作，面向需要高频文本编辑与键盘导航的 macOS 用户。")
+                    Text("由 \(metadata.author) 制作，面向所有需要文本编辑与键盘导航的 macOS 用户；编辑越频繁，收益越明显。")
                         .font(.system(size: 14, weight: .medium, design: .rounded))
                         .foregroundStyle(CapsNavTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
