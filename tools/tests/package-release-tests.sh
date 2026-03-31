@@ -3,7 +3,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-SCRIPT_PATH="$ROOT_DIR/tools/package-release.sh"
+SCRIPT_PATH="$ROOT_DIR/tools/package.sh"
 
 fail() {
   echo "FAIL: $1" >&2
@@ -47,9 +47,35 @@ background_relative_path="$(caps_nav_background_relative_path)"
 assert_eq ".background/Caps Nav Installer Background.png" "$background_relative_path" "background path should use the hidden Finder background folder"
 
 usage_output="$(caps_nav_usage)"
-assert_contains "$usage_output" "./tools/package-release.sh" "usage should mention the direct execution command"
+assert_contains "$usage_output" "./tools/package.sh" "usage should mention the direct execution command"
 assert_contains "$usage_output" "--mode <dev|release>" "usage should describe the mode selector"
 assert_contains "$usage_output" "--output-dir" "usage should describe output directory option"
+assert_contains "$usage_output" "--headless-dmg" "usage should describe the headless dmg option"
+
+xcodebuild() {
+  printf '%s\n' "$@"
+}
+
+MODE="dev"
+PROJECT_PATH="$ROOT_DIR/Caps Nav.xcodeproj"
+SCHEME_NAME="CapsNav"
+CONFIGURATION_NAME="Release"
+DERIVED_DATA_PATH="/tmp/CapsNavDerivedData"
+DEV_DISABLE_SIGNING=1
+unsigned_dev_build_output="$(caps_nav_build_app_dev)"
+assert_contains "$unsigned_dev_build_output" "CODE_SIGNING_ALLOWED=NO" "unsigned dev mode should disable code signing"
+assert_contains "$unsigned_dev_build_output" "CODE_SIGNING_REQUIRED=NO" "unsigned dev mode should disable required code signing"
+assert_contains "$unsigned_dev_build_output" "CODE_SIGN_IDENTITY=" "unsigned dev mode should clear the signing identity"
+
+HEADLESS_DMG=0
+if ! caps_nav_should_customize_dmg_layout; then
+  fail "visual dmg layout should stay enabled by default"
+fi
+
+HEADLESS_DMG=1
+if caps_nav_should_customize_dmg_layout; then
+  fail "headless dmg mode should skip Finder layout customization"
+fi
 
 MODE="dev"
 OUTPUT_DIR=""

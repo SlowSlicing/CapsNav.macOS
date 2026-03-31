@@ -11,6 +11,8 @@ GENERATE_SHA256=1
 SIGNING_IDENTITY=""
 TEAM_ID=""
 NOTARY_PROFILE=""
+DEV_DISABLE_SIGNING=0
+HEADLESS_DMG=0
 ARCHIVE_PATH=""
 EXPORT_PATH=""
 EXPORT_OPTIONS_PLIST_PATH=""
@@ -29,6 +31,8 @@ caps_nav_usage() {
   cat <<'EOF_USAGE'
 用法：
   ./tools/package.sh [--mode <dev|release>] [--output-dir <path>] [--derived-data <path>] [--skip-sha256]
+  ./tools/package.sh --mode dev --unsigned-dev
+  ./tools/package.sh --mode dev --headless-dmg
   ./tools/package.sh --mode release --signing-identity <name> --team-id <id> --notary-profile <profile>
 
 说明：
@@ -40,6 +44,8 @@ caps_nav_usage() {
   --mode <dev|release>        打包模式，默认 dev
   --output-dir <path>         产物输出目录，默认是仓库根目录下的 artifacts/<mode>/
   --derived-data <path>       构建产物目录，默认是仓库根目录下的 .build/ReleasePackaging
+  --unsigned-dev              dev 模式下关闭代码签名，适合 CI 或未配置 Apple 开发签名的环境
+  --headless-dmg              跳过 Finder 视觉布局，生成适合 CI 的简化 DMG
   --signing-identity <name>   release 模式的 Developer ID Application 签名身份
   --team-id <id>              release 模式的 Apple Developer Team ID
   --notary-profile <profile>  release 模式的 notarytool keychain profile
@@ -49,6 +55,8 @@ caps_nav_usage() {
 环境变量：
   CAPS_NAV_OUTPUT_DIR
   CAPS_NAV_DERIVED_DATA
+  CAPS_NAV_DEV_DISABLE_SIGNING
+  CAPS_NAV_HEADLESS_DMG
   CAPS_NAV_SIGNING_IDENTITY
   CAPS_NAV_TEAM_ID
   CAPS_NAV_NOTARY_PROFILE
@@ -149,6 +157,8 @@ caps_nav_parse_args() {
   MODE="${CAPS_NAV_MODE:-dev}"
   OUTPUT_DIR="${CAPS_NAV_OUTPUT_DIR:-}"
   DERIVED_DATA_PATH="${CAPS_NAV_DERIVED_DATA:-}"
+  DEV_DISABLE_SIGNING="${CAPS_NAV_DEV_DISABLE_SIGNING:-0}"
+  HEADLESS_DMG="${CAPS_NAV_HEADLESS_DMG:-0}"
   SIGNING_IDENTITY="${CAPS_NAV_SIGNING_IDENTITY:-}"
   TEAM_ID="${CAPS_NAV_TEAM_ID:-}"
   NOTARY_PROFILE="${CAPS_NAV_NOTARY_PROFILE:-}"
@@ -179,6 +189,14 @@ caps_nav_parse_args() {
         }
         DERIVED_DATA_PATH="$2"
         shift 2
+        ;;
+      --unsigned-dev)
+        DEV_DISABLE_SIGNING=1
+        shift
+        ;;
+      --headless-dmg)
+        HEADLESS_DMG=1
+        shift
         ;;
       --signing-identity)
         [[ $# -ge 2 ]] || {
@@ -285,16 +303,30 @@ caps_nav_prepare_directories() {
 
 caps_nav_build_app_dev() {
   caps_nav_log "开始构建 dev 模式未签名 Release 通用版 App"
+  local -a xcodebuild_args=(
+    -project "$PROJECT_PATH"
+    -scheme "$SCHEME_NAME"
+    -configuration "$CONFIGURATION_NAME"
+    -destination "generic/platform=macOS"
+    -derivedDataPath "$DERIVED_DATA_PATH"
+    ARCHS="arm64 x86_64"
+    ONLY_ACTIVE_ARCH=NO
+  )
 
-  xcodebuild \
-    -project "$PROJECT_PATH" \
-    -scheme "$SCHEME_NAME" \
-    -configuration "$CONFIGURATION_NAME" \
-    -destination "generic/platform=macOS" \
-    -derivedDataPath "$DERIVED_DATA_PATH" \
-    ARCHS="arm64 x86_64" \
-    ONLY_ACTIVE_ARCH=NO \
-    build
+  if [[ "$DEV_DISABLE_SIGNING" == "1" ]]; then
+    caps_nav_log "dev 模式已关闭代码签名，适合 CI 或未配置 Apple 开发签名的环境"
+    xcodebuild_args+=(
+      CODE_SIGNING_ALLOWED=NO
+      CODE_SIGNING_REQUIRED=NO
+      CODE_SIGN_IDENTITY=
+    )
+  fi
+
+  xcodebuild "${xcodebuild_args[@]}" build
+}
+
+caps_nav_should_customize_dmg_layout() {
+  [[ "$HEADLESS_DMG" != "1" ]]
 }
 
 caps_nav_archive_app_release() {
@@ -484,31 +516,42 @@ caps_nav_create_dmg() {
   caps_nav_log "准备 DMG 内容"
   ditto "$APP_BUNDLE_PATH" "$staging_dir/$PRODUCT_APP_NAME"
   ln -s /Applications "$staging_dir/Applications"
-  caps_nav_generate_background_asset "$background_path"
-  caps_nav_write_finder_script "$finder_script_path"
-
   rm -f "$DMG_PATH" "$SHA256_PATH"
 
-  caps_nav_log "生成可编辑的临时 DMG"
-  caps_nav_run_and_capture "创建临时 DMG" hdiutil create \
-    -volname "$volume_name" \
-    -srcfolder "$staging_dir" \
-    -ov \
-    -fs HFS+ \
-    -format UDRW \
-    "$temp_dmg_path" >/dev/null
+  if caps_nav_should_customize_dmg_layout; then
+    caps_nav_generate_background_asset "$background_path"
+    caps_nav_write_finder_script "$finder_script_path"
 
-  caps_nav_attach_temp_dmg "$temp_dmg_path"
+    caps_nav_log "生成可编辑的临时 DMG"
+    caps_nav_run_and_capture "创建临时 DMG" hdiutil create \
+      -volname "$volume_name" \
+      -srcfolder "$staging_dir" \
+      -ov \
+      -fs HFS+ \
+      -format UDRW \
+      "$temp_dmg_path" >/dev/null
 
-  caps_nav_log "应用 Finder 视觉布局"
-  caps_nav_run_and_capture "设置 Finder 安装页布局" osascript "$finder_script_path" "$volume_name" >/dev/null
-  caps_nav_log "持久化 Finder 布局"
-  caps_nav_persist_finder_layout
-  caps_nav_detach_temp_dmg "$CAPS_NAV_ATTACHED_DEVICE"
-  CAPS_NAV_ATTACHED_DEVICE=""
+    caps_nav_attach_temp_dmg "$temp_dmg_path"
 
-  caps_nav_log "转换为最终 DMG：$DMG_PATH"
-  caps_nav_run_and_capture "压缩最终 DMG" hdiutil convert "$temp_dmg_path" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG_OUTPUT_BASE" >/dev/null
+    caps_nav_log "应用 Finder 视觉布局"
+    caps_nav_run_and_capture "设置 Finder 安装页布局" osascript "$finder_script_path" "$volume_name" >/dev/null
+    caps_nav_log "持久化 Finder 布局"
+    caps_nav_persist_finder_layout
+    caps_nav_detach_temp_dmg "$CAPS_NAV_ATTACHED_DEVICE"
+    CAPS_NAV_ATTACHED_DEVICE=""
+
+    caps_nav_log "转换为最终 DMG：$DMG_PATH"
+    caps_nav_run_and_capture "压缩最终 DMG" hdiutil convert "$temp_dmg_path" -format UDZO -imagekey zlib-level=9 -ov -o "$DMG_OUTPUT_BASE" >/dev/null
+  else
+    caps_nav_log "使用无头模式生成简化 DMG：$DMG_PATH"
+    caps_nav_run_and_capture "创建简化 DMG" hdiutil create \
+      -volname "$volume_name" \
+      -srcfolder "$staging_dir" \
+      -ov \
+      -fs HFS+ \
+      -format UDZO \
+      "$DMG_OUTPUT_BASE" >/dev/null
+  fi
 }
 
 caps_nav_notarize_dmg() {
@@ -566,7 +609,12 @@ caps_nav_print_summary() {
     echo "  2. 已完成 Developer ID 签名、Apple notarization 与 stapler。"
   else
     echo "  2. dev 模式是不含正式签名与公证的 Release 级本地分发包。"
-    echo "  3. 首次分发给其他用户时，macOS 可能仍会提示“无法验证开发者”或“无法检查恶意软件”。"
+    if [[ "$HEADLESS_DMG" == "1" ]]; then
+      echo "  3. 当前 DMG 使用无头模式生成，因此不包含 Finder 视觉布局。"
+      echo "  4. 首次分发给其他用户时，macOS 可能仍会提示“无法验证开发者”或“无法检查恶意软件”。"
+    else
+      echo "  3. 首次分发给其他用户时，macOS 可能仍会提示“无法验证开发者”或“无法检查恶意软件”。"
+    fi
   fi
 }
 

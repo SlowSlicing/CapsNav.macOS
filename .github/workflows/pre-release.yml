@@ -1,0 +1,184 @@
+name: Build Pre-Release
+
+on:
+  # 手动触发，避免每次 push 都自动发包。
+  workflow_dispatch:
+
+permissions:
+  # 需要写权限来创建 tag、创建 release、上传 release assets。
+  contents: write
+
+jobs:
+  pre-release:
+    name: Build Pre-Release
+    # 必须使用 macOS runner，因为打包脚本依赖 xcodebuild、hdiutil 等 macOS 工具。
+    runs-on: macos-latest
+
+    steps:
+      # 第一步：拉取完整仓库历史。
+      # WHY：后面创建 release/tag 时，完整 git 上下文更稳，也便于未来扩展版本比较逻辑。
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 第二步：执行 dev 打包。
+      # 这里显式关闭开发签名依赖，并使用无头 DMG 模式，
+      # 这样 workflow 不需要 Apple ID、本地证书，也不会卡在 Finder 视觉布局步骤。
+      - name: Build unsigned dev package
+        env:
+          CAPS_NAV_DEV_DISABLE_SIGNING: "1"
+        run: |
+          chmod +x ./tools/package.sh
+          ./tools/package.sh --mode dev --headless-dmg
+
+      # 第三步：从实际构建产物里读取版本信息和产物路径。
+      # WHY：版本号以工程配置为准，避免手填版本造成 tag / release / 安装包名称不一致。
+      - name: Read release metadata
+        id: metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          app_path=".build/ReleasePackaging/Build/Products/Release/Caps Nav.app"
+          info_plist="$app_path/Contents/Info.plist"
+
+          if [[ ! -f "$info_plist" ]]; then
+            echo "未找到构建产物信息文件：$info_plist" >&2
+            exit 1
+          fi
+
+          version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$info_plist")"
+          build="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$info_plist")"
+          tag="v${version}"
+          release_name="$tag"
+
+          dmg_path="$(find artifacts/dev -maxdepth 1 -type f -name '*.dmg' ! -name '*.sha256' | head -n 1)"
+          if [[ -z "$dmg_path" ]]; then
+            echo "未找到 dev 安装包（DMG）产物" >&2
+            exit 1
+          fi
+
+          sha_path="${dmg_path}.sha256"
+          if [[ ! -f "$sha_path" ]]; then
+            echo "未找到 SHA-256 摘要文件：$sha_path" >&2
+            exit 1
+          fi
+
+          {
+            echo "version=$version"
+            echo "build=$build"
+            echo "tag=$tag"
+            echo "release_name=$release_name"
+            echo "dmg_path=$dmg_path"
+            echo "sha_path=$sha_path"
+          } >> "$GITHUB_OUTPUT"
+
+      # 第四步：先检查同名 tag 是否已经存在。
+      # WHY：你约定每个版本只对应一个 v版本号，如果重复发布同名 tag，语义会混乱。
+      - name: Ensure tag does not already exist
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.metadata.outputs.tag }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tag = process.env.TAG_NAME;
+
+            try {
+              await github.rest.git.getRef({
+                owner,
+                repo,
+                ref: `tags/${tag}`,
+              });
+
+              core.setFailed(`Tag ${tag} 已存在。请先更新工程版本号，再重新运行工作流。`);
+            } catch (error) {
+              if (error.status !== 404) {
+                throw error;
+              }
+            }
+
+      # 第五步：创建 GitHub pre-release。
+      # 这里会自动创建同名 tag，并把 release 标记为 pre-release，
+      # 同时启用 GitHub 自动生成 release notes，再补一段固定说明给用户。
+      - name: Create GitHub pre-release
+        id: create_release
+        uses: actions/github-script@v7
+        env:
+          TAG_NAME: ${{ steps.metadata.outputs.tag }}
+          RELEASE_NAME: ${{ steps.metadata.outputs.release_name }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const tag = process.env.TAG_NAME;
+            const releaseName = process.env.RELEASE_NAME;
+            const intro = [
+              '这是一个基于 Release 构建的 dev 预发布安装包。',
+              '它不包含 Developer ID 正式签名、公证和票据贴附。',
+              '首次打开时，macOS 可能提示安全拦截；请按 README 和 docs 中的说明处理。',
+              '',
+            ].join('\n');
+
+            const release = await github.rest.repos.createRelease({
+              owner,
+              repo,
+              tag_name: tag,
+              target_commitish: context.sha,
+              name: releaseName,
+              prerelease: true,
+              generate_release_notes: true,
+              body: intro,
+            });
+
+            core.setOutput('release_id', String(release.data.id));
+            core.setOutput('release_url', release.data.html_url);
+
+      # 第六步：上传安装包和 SHA-256 校验文件。
+      # WHY：release 只有页面还不够，真正让用户下载的是这两个 asset。
+      - name: Upload release assets
+        uses: actions/github-script@v7
+        env:
+          RELEASE_ID: ${{ steps.create_release.outputs.release_id }}
+          DMG_PATH: ${{ steps.metadata.outputs.dmg_path }}
+          SHA_PATH: ${{ steps.metadata.outputs.sha_path }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const { owner, repo } = context.repo;
+            const releaseId = Number(process.env.RELEASE_ID);
+            const files = [process.env.DMG_PATH, process.env.SHA_PATH];
+
+            for (const filePath of files) {
+              const data = fs.readFileSync(filePath);
+
+              await github.rest.repos.uploadReleaseAsset({
+                owner,
+                repo,
+                release_id: releaseId,
+                name: path.basename(filePath),
+                data,
+                headers: {
+                  'content-type': filePath.endsWith('.sha256')
+                    ? 'text/plain; charset=utf-8'
+                    : 'application/octet-stream',
+                  'content-length': data.length,
+                },
+              });
+            }
+
+      # 第七步：把本次发布结果写到 Actions 的摘要页里。
+      # WHY：这样你点开工作流结果时，不用翻日志就能看到 release 链接和产物信息。
+      - name: Write workflow summary
+        run: |
+          {
+            echo "### Dev 预发布已创建"
+            echo
+            echo "- Release: [${{ steps.metadata.outputs.release_name }}](${{ steps.create_release.outputs.release_url }})"
+            echo "- Tag: \`${{ steps.metadata.outputs.tag }}\`"
+            echo "- Version: \`${{ steps.metadata.outputs.version }}\`"
+            echo "- Build: \`${{ steps.metadata.outputs.build }}\`"
+            echo "- DMG: \`${{ steps.metadata.outputs.dmg_path }}\`"
+            echo "- SHA-256: \`${{ steps.metadata.outputs.sha_path }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
