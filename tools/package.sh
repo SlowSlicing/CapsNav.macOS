@@ -44,7 +44,7 @@ caps_nav_usage() {
   --mode <dev|release>        打包模式，默认 dev
   --output-dir <path>         产物输出目录，默认是仓库根目录下的 artifacts/<mode>/
   --derived-data <path>       构建产物目录，默认是仓库根目录下的 .build/ReleasePackaging
-  --unsigned-dev              dev 模式下关闭代码签名，适合 CI 或未配置 Apple 开发签名的环境
+  --unsigned-dev              dev 模式下关闭 Apple 开发签名，改为 ad-hoc bundle 签名，适合 CI 或未配置开发签名的环境
   --headless-dmg              跳过 Finder 视觉布局，生成适合 CI 的简化 DMG
   --signing-identity <name>   release 模式的 Developer ID Application 签名身份
   --team-id <id>              release 模式的 Apple Developer Team ID
@@ -302,7 +302,7 @@ caps_nav_prepare_directories() {
 }
 
 caps_nav_build_app_dev() {
-  caps_nav_log "开始构建 dev 模式未签名 Release 通用版 App"
+  caps_nav_log "开始构建 dev 模式 Release 通用版 App"
   local -a xcodebuild_args=(
     -project "$PROJECT_PATH"
     -scheme "$SCHEME_NAME"
@@ -314,7 +314,7 @@ caps_nav_build_app_dev() {
   )
 
   if [[ "$DEV_DISABLE_SIGNING" == "1" ]]; then
-    caps_nav_log "dev 模式已关闭代码签名，适合 CI 或未配置 Apple 开发签名的环境"
+    caps_nav_log "dev 模式已关闭 Apple 开发签名，后续会补做 ad-hoc bundle 签名"
     xcodebuild_args+=(
       CODE_SIGNING_ALLOWED=NO
       CODE_SIGNING_REQUIRED=NO
@@ -404,6 +404,19 @@ caps_nav_verify_signed_app() {
   caps_nav_verify_universal_app
   caps_nav_log "校验签名后的 App"
   caps_nav_run_and_capture "校验 App 签名" codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE_PATH" >/dev/null
+}
+
+caps_nav_dev_bundle_sign_command() {
+  printf 'codesign --force --deep --sign - "%s"' "$APP_BUNDLE_PATH"
+}
+
+caps_nav_adhoc_sign_dev_app() {
+  if [[ "$DEV_DISABLE_SIGNING" != "1" ]]; then
+    return 0
+  fi
+
+  caps_nav_log "为 dev 产物补做 ad-hoc bundle 签名，保证系统能稳定识别应用身份"
+  caps_nav_run_and_capture "对 dev App 执行 ad-hoc bundle 签名" codesign --force --deep --sign - "$APP_BUNDLE_PATH" >/dev/null
 }
 
 caps_nav_read_metadata() {
@@ -628,6 +641,10 @@ caps_nav_require_base_dependencies() {
   caps_nav_require_command swift
   caps_nav_require_command /usr/libexec/PlistBuddy
   caps_nav_require_file "$BACKGROUND_GENERATOR_PATH"
+
+  if [[ "$DEV_DISABLE_SIGNING" == "1" ]]; then
+    caps_nav_require_command codesign
+  fi
 }
 
 caps_nav_require_release_dependencies() {
@@ -654,6 +671,7 @@ caps_nav_main() {
     caps_nav_verify_signed_app
   else
     caps_nav_build_app_dev
+    caps_nav_adhoc_sign_dev_app
     caps_nav_verify_universal_app
   fi
 

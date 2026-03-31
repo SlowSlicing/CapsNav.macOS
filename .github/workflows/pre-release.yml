@@ -23,8 +23,9 @@ jobs:
           fetch-depth: 0
 
       # 第二步：执行 dev 打包。
-      # 这里显式关闭开发签名依赖，并使用无头 DMG 模式，
-      # 这样 workflow 不需要 Apple ID、本地证书，也不会卡在 Finder 视觉布局步骤。
+      # 这里显式关闭 Apple 开发签名依赖，并使用无头 DMG 模式。
+      # 打包脚本会自动补一层 ad-hoc bundle 签名，让权限与应用身份仍可被系统稳定识别，
+      # 同时 workflow 仍然不需要 Apple ID、本地证书，也不会卡在 Finder 视觉布局步骤。
       - name: Build unsigned dev package
         env:
           CAPS_NAV_DEV_DISABLE_SIGNING: "1"

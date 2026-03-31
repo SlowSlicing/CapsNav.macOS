@@ -178,6 +178,10 @@ assert_contains "$dmg_sign_command" 'codesign --force --sign "Developer ID Appli
 dmg_gatekeeper_command="$(caps_nav_release_dmg_gatekeeper_command)"
 assert_contains "$dmg_gatekeeper_command" 'spctl -a -t open --context context:primary-signature -v "/tmp/Caps Nav Release.dmg"' "release mode should verify the dmg gatekeeper status"
 
+APP_BUNDLE_PATH="/tmp/Caps Nav.app"
+dev_bundle_sign_command="$(caps_nav_dev_bundle_sign_command)"
+assert_contains "$dev_bundle_sign_command" 'codesign --force --deep --sign - "/tmp/Caps Nav.app"' "unsigned dev mode should apply ad-hoc bundle signing so system permissions can identify the app"
+
 preferences_source="$(cat "$ROOT_DIR/Caps Nav/Features/Preferences/PreferencesRootView.swift")"
 assert_contains "$preferences_source" "private struct SettingsMappingKeyMenu" "preferences view should still contain the trigger key menu"
 assert_contains "$preferences_source" "private struct SettingsMappingActionMenu" "preferences view should still contain the action menu"
