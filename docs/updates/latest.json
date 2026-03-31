@@ -1,8 +1,8 @@
 {
   "version": "0.0.2",
-  "publishedAt": "2026-03-31T11:09:59Z",
+  "publishedAt": "2026-03-31T11:17:03Z",
   "minimumSystemVersion": "13.0",
-  "pageURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/tag/v0.0.2",
-  "downloadURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/download/v0.0.2/Caps-Nav-0.0.2-1-macOS-universal.dmg",
-  "notesMarkdown": "**Full Changelog**: https://github.com/SlowSlicing/CapsNav.macOS/compare/v0.0.1...v0.0.2"
+  "pageURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/tag/v0.0.3",
+  "downloadURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/download/v0.0.3/Caps-Nav-0.0.2-1-macOS-universal.dmg",
+  "notesMarkdown": "# Caps Nav 0.0.2\r\n\r\n## 亮点更新\r\n\r\n这次版本主要围绕 **在线检查更新** 做了一轮打通，同时顺手优化了部分交互细节。\r\n\r\n### 新增\r\n\r\n- 新增：应用内 `检查更新`\r\n- 新增：从 GitHub Pages 拉取最新版本信息\r\n- 新增：更新弹窗直接展示 **Markdown 更新说明**\r\n- 新增：菜单栏入口与设置页入口两套检查路径\r\n\r\n### 优化\r\n\r\n1. 优化了更新弹窗的视觉层级\r\n2. 优化了版本号比较逻辑\r\n3. 优化了错误状态提示文案\r\n4. 优化了最低系统版本不满足时的说明方式\r\n\r\n### 修复\r\n\r\n- 修复：更新服务现在会区分 `2xx` 成功响应和异常状态码\r\n- 修复：自定义域名下的更新源地址兼容问题\r\n- 修复：部分情况下更新窗口重复弹出的问题\r\n\r\n---\r\n\r\n## 兼容性说明\r\n\r\n> 当前版本最低支持 `macOS 13.0+`  \r\n> 如果系统版本不满足要求，客户端会提示，但不会直接下载安装。\r\n\r\n## 使用提示\r\n\r\n你现在可以通过下面两个入口检查更新：\r\n\r\n- 菜单栏里的 **检查更新**\r\n- 设置页 `高级 -> 软件更新`\r\n\r\n也可以点击这里查看完整发布记录：\r\n\r\n[查看 Releases 页面](https://github.com/SlowSlicing/CapsNav.macOS/releases)\r\n\r\n---\r\n\r\n## 示例样式\r\n\r\n这里顺便放一些常见 Markdown 元素，方便你看客户端显示是否正常：\r\n\r\n- **粗体**\r\n- *斜体*\r\n- ~~删除线~~\r\n- `行内代码`\r\n- [链接](https://slowslicing.me/CapsNav.macOS/updates/latest.json)\r\n\r\n```text\r\n当前测试版本：0.0.2\r\n更新源：GitHub Pages\r\n状态：用于客户端渲染联调\r\n"
 }
