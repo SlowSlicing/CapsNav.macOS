@@ -199,4 +199,10 @@ if [[ "$preferences_source" == *$'Menu {\n            ForEach(SettingsShortcutKe
   fail "settings shortcut key menu should avoid Menu+Section to stay compatible with GitHub Xcode 16"
 fi
 
+pre_release_workflow="$(cat "$ROOT_DIR/.github/workflows/pre-release.yml")"
+assert_contains "$pre_release_workflow" "./tools/package.sh --mode dev --unsigned-dev" "pre-release workflow should use unsigned dev packaging"
+if [[ "$pre_release_workflow" == *"--headless-dmg"* ]]; then
+  fail "pre-release workflow should not force headless dmg mode"
+fi
+
 echo "package-release shell tests passed"
