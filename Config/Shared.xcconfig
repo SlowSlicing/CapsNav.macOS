@@ -1,0 +1,7 @@
+// Shared signing defaults for the repository.
+// Personal team selection lives in LocalSigning.xcconfig, which is ignored.
+CODE_SIGN_STYLE = Automatic
+CODE_SIGN_IDENTITY = Apple Development
+PROVISIONING_PROFILE_SPECIFIER =
+
+#include? "LocalSigning.xcconfig"

@@ -1,0 +1,36 @@
+# macOS Finder metadata
+.DS_Store
+
+# Local collaboration instructions
+AGENTS.md
+development_documentation.md
+docs/plans/
+docs/superpowers/
+
+# Xcode / Swift build outputs
+.build/
+DerivedData/
+
+# Xcode user-specific workspace state
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+**/xcuserdata/
+
+# Local editor / agent metadata
+.claude/
+.superpowers/
+
+# Local signing overrides
+Config/LocalSigning.xcconfig
+
+# Packaged release artifacts
+artifacts/
+
+# Local logs and swap files
+*.swp
+*.swo
+*~

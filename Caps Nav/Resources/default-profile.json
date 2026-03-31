@@ -1,0 +1,227 @@
+{
+  "id" : "default",
+  "mappings" : [
+    {
+      "description" : "光标向上移动",
+      "output" : {
+        "action" : "moveUp",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "e",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标向下移动",
+      "output" : {
+        "action" : "moveDown",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "d",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标向左移动",
+      "output" : {
+        "action" : "moveLeft",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "s",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标向右移动",
+      "output" : {
+        "action" : "moveRight",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "f",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标向左移动一个单词",
+      "output" : {
+        "action" : "moveWordLeft",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "a",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标向右移动一个单词",
+      "output" : {
+        "action" : "moveWordRight",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "g",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标移动到行首",
+      "output" : {
+        "action" : "moveToLineStart",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "p",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "光标移动到行尾",
+      "output" : {
+        "action" : "moveToLineEnd",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : ";",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向左删除一个",
+      "output" : {
+        "action" : "deleteBackward",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "w",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向右删除一个",
+      "output" : {
+        "action" : "deleteForward",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "r",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向左删除一个单词",
+      "output" : {
+        "action" : "deleteWordBackward",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "q",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向右删除一个单词",
+      "output" : {
+        "action" : "deleteWordForward",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "t",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向上选中（跨行）",
+      "output" : {
+        "action" : "selectUp",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "i",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向下选中（跨行）",
+      "output" : {
+        "action" : "selectDown",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "k",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向左选中一个",
+      "output" : {
+        "action" : "selectLeft",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "j",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向右选中一个",
+      "output" : {
+        "action" : "selectRight",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "l",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向左选中一个单词",
+      "output" : {
+        "action" : "selectWordLeft",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "h",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向右选中一个单词",
+      "output" : {
+        "action" : "selectWordRight",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "n",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向左选中到行首",
+      "output" : {
+        "action" : "selectToLineStart",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "u",
+        "modifiers" : []
+      }
+    },
+    {
+      "description" : "向右选中到行尾",
+      "output" : {
+        "action" : "selectToLineEnd",
+        "type" : "builtin"
+      },
+      "trigger" : {
+        "key" : "o",
+        "modifiers" : []
+      }
+    }
+  ],
+  "name" : "默认方案",
+  "version" : 2
+}
