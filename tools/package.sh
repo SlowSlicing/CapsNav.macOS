@@ -33,8 +33,8 @@ caps_nav_usage() {
 
 说明：
   生成 Caps Nav 的 macOS 分发包。
-  - dev：本地打包，输出 Release 通用版 App 与 DMG
-  - release：正式发布，额外执行 Developer ID 签名、Apple notarization 与票据贴附
+  - dev：生成未做正式签名与公证的 Release 级本地分发包，输出通用版 App 与 DMG
+  - release：生成正式发布包，额外执行 Developer ID 签名、Apple notarization 与票据贴附
 
 选项：
   --mode <dev|release>        打包模式，默认 dev
@@ -284,7 +284,7 @@ caps_nav_prepare_directories() {
 }
 
 caps_nav_build_app_dev() {
-  caps_nav_log "开始构建 dev 模式 Release Universal App"
+  caps_nav_log "开始构建 dev 模式未签名 Release 通用版 App"
 
   xcodebuild \
     -project "$PROJECT_PATH" \
@@ -565,7 +565,7 @@ caps_nav_print_summary() {
   if [[ "$MODE" == "release" ]]; then
     echo "  2. 已完成 Developer ID 签名、Apple notarization 与 stapler。"
   else
-    echo "  2. dev 模式不包含 Developer ID 签名与 Apple notarization。"
+    echo "  2. dev 模式是不含正式签名与公证的 Release 级本地分发包。"
     echo "  3. 首次分发给其他用户时，macOS 可能仍会提示“无法验证开发者”或“无法检查恶意软件”。"
   fi
 }
