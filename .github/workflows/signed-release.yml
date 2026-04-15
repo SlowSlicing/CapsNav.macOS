@@ -182,7 +182,7 @@ jobs:
           fi
 
           chmod +x ./tools/package.sh
-          ./tools/package.sh --mode release --headless-dmg
+          ./tools/package.sh --mode release
 
       - name: Read build metadata
         id: build
