@@ -1,6 +1,9 @@
-name: Publish Release Assets
+name: Publish Signed Release Assets
 
 on:
+  release:
+    types:
+      - published
   workflow_dispatch:
     inputs:
       branch:
@@ -22,8 +25,8 @@ permissions:
   contents: write
 
 jobs:
-  publish-release-assets:
-    name: Build Release Assets
+  publish-signed-release-assets:
+    name: Build Signed Release Assets
     runs-on: macos-latest
 
     steps:
@@ -38,15 +41,25 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const tag = core.getInput('tag');
-            const targetBranch = core.getInput('branch') || 'main';
-            const publishLatest = core.getInput('publish_latest') || 'false';
 
-            const release = (await github.rest.repos.getReleaseByTag({
-              owner,
-              repo,
-              tag,
-            })).data;
+            let release;
+            let targetBranch;
+            let publishLatest;
+
+            if (context.eventName === 'release') {
+              release = context.payload.release;
+              targetBranch = 'main';
+              publishLatest = 'true';
+            } else {
+              const tag = core.getInput('tag');
+              release = (await github.rest.repos.getReleaseByTag({
+                owner,
+                repo,
+                tag,
+              })).data;
+              targetBranch = core.getInput('branch') || 'main';
+              publishLatest = core.getInput('publish_latest') || 'false';
+            }
 
             core.setOutput('release_id', String(release.id));
             core.setOutput('release_name', release.name || release.tag_name);
@@ -58,7 +71,6 @@ jobs:
             core.setOutput('publish_latest', publishLatest);
 
       - name: Validate tag belongs to target branch
-        id: validate
         env:
           TARGET_BRANCH: ${{ steps.release.outputs.target_branch }}
           TARGET_TAG: ${{ steps.release.outputs.tag }}
@@ -78,8 +90,6 @@ jobs:
             exit 1
           fi
 
-          echo "tag_commit=$tag_commit" >> "$GITHUB_OUTPUT"
-
       - name: Checkout tag commit
         env:
           TARGET_TAG: ${{ steps.release.outputs.tag }}
@@ -87,12 +97,85 @@ jobs:
           set -euo pipefail
           git checkout --detach "$TARGET_TAG"
 
-      - name: Build unsigned dev package
+      - name: Prepare signing keychain and notary profile
+        id: signing
         env:
-          CAPS_NAV_DEV_DISABLE_SIGNING: "1"
+          DEVELOPER_ID_P12_BASE64: ${{ secrets.CAPS_NAV_DEVELOPER_ID_P12_BASE64 }}
+          DEVELOPER_ID_P12_PASSWORD: ${{ secrets.CAPS_NAV_DEVELOPER_ID_P12_PASSWORD }}
+          CAPS_NAV_TEAM_ID: ${{ secrets.CAPS_NAV_TEAM_ID }}
+          NOTARY_APPLE_ID: ${{ secrets.CAPS_NAV_NOTARY_APPLE_ID }}
+          NOTARY_APP_PASSWORD: ${{ secrets.CAPS_NAV_NOTARY_APP_PASSWORD }}
         run: |
+          set -euo pipefail
+
+          required_vars=(
+            DEVELOPER_ID_P12_BASE64
+            DEVELOPER_ID_P12_PASSWORD
+            CAPS_NAV_TEAM_ID
+            NOTARY_APPLE_ID
+            NOTARY_APP_PASSWORD
+          )
+
+          for var_name in "${required_vars[@]}"; do
+            if [[ -z "${!var_name:-}" ]]; then
+              echo "缺少必需 secret：$var_name" >&2
+              exit 1
+            fi
+          done
+
+          cert_path="$RUNNER_TEMP/caps-nav-developer-id.p12"
+          keychain_path="$RUNNER_TEMP/caps-nav-signing.keychain-db"
+          keychain_password="$(uuidgen)"
+          notary_profile="capsnav-notary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+
+          echo "$DEVELOPER_ID_P12_BASE64" | base64 --decode > "$cert_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+
+          security import "$cert_path" \
+            -k "$keychain_path" \
+            -P "$DEVELOPER_ID_P12_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security \
+            -T /usr/bin/xcodebuild
+
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+
+          security default-keychain -d user -s "$keychain_path"
+          security find-identity -v -p codesigning "$keychain_path"
+
+          xcrun notarytool store-credentials "$notary_profile" \
+            --apple-id "$NOTARY_APPLE_ID" \
+            --team-id "$CAPS_NAV_TEAM_ID" \
+            --password "$NOTARY_APP_PASSWORD" \
+            --validate
+
+          {
+            echo "keychain_path=$keychain_path"
+            echo "notary_profile=$notary_profile"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build signed release package
+        env:
+          CAPS_NAV_SIGNING_IDENTITY: ${{ secrets.CAPS_NAV_SIGNING_IDENTITY }}
+          CAPS_NAV_TEAM_ID: ${{ secrets.CAPS_NAV_TEAM_ID }}
+          CAPS_NAV_NOTARY_PROFILE: ${{ steps.signing.outputs.notary_profile }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${CAPS_NAV_SIGNING_IDENTITY:-}" ]]; then
+            echo "缺少必需 secret：CAPS_NAV_SIGNING_IDENTITY" >&2
+            exit 1
+          fi
+
           chmod +x ./tools/package.sh
-          ./tools/package.sh --mode dev --unsigned-dev --headless-dmg
+          ./tools/package.sh --mode release --headless-dmg
 
       - name: Read build metadata
         id: build
@@ -100,7 +183,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          app_path=".build/ReleasePackaging/Build/Products/Release/Caps Nav.app"
+          app_path=".build/ReleasePackaging/ExportedRelease/Caps Nav.app"
           info_plist="$app_path/Contents/Info.plist"
 
           if [[ ! -f "$info_plist" ]]; then
@@ -117,9 +200,9 @@ jobs:
             minimum_system_version="13.0"
           fi
 
-          dmg_path="$(find artifacts/dev -maxdepth 1 -type f -name '*.dmg' ! -name '*.sha256' | head -n 1)"
+          dmg_path="$(find artifacts/release -maxdepth 1 -type f -name '*.dmg' ! -name '*.sha256' | head -n 1)"
           if [[ -z "$dmg_path" ]]; then
-            echo "未找到 dev 安装包（DMG）产物" >&2
+            echo "未找到 release 安装包（DMG）产物" >&2
             exit 1
           fi
 
@@ -207,10 +290,11 @@ jobs:
         if: ${{ steps.release.outputs.publish_latest == 'true' }}
         env:
           CANDIDATE_VERSION: ${{ steps.build.outputs.version }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
 
-          if [[ -f "docs/updates/latest.json" ]]; then
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && -f "docs/updates/latest.json" ]]; then
             node .github/scripts/generate-update-json.js compare \
               --candidate "$CANDIDATE_VERSION" \
               --current-file "docs/updates/latest.json"
@@ -253,13 +337,24 @@ jobs:
             exit 0
           fi
 
-          git commit -m "chore: update latest release metadata"
+          git commit -m "chore: update latest release metadata from signed package"
           git push origin HEAD:main
+
+      - name: Cleanup signing keychain
+        if: ${{ always() }}
+        env:
+          KEYCHAIN_PATH: ${{ steps.signing.outputs.keychain_path }}
+        run: |
+          set -euo pipefail
+
+          if [[ -n "${KEYCHAIN_PATH:-}" ]]; then
+            security delete-keychain "$KEYCHAIN_PATH" || true
+          fi
 
       - name: Write workflow summary
         run: |
           {
-            echo "### Release 产物已处理"
+            echo "### Signed Release 产物已处理"
             echo
             echo "- Release: [${{ steps.release.outputs.release_name }}](${{ steps.release.outputs.page_url }})"
             echo "- Tag: \`${{ steps.release.outputs.tag }}\`"
