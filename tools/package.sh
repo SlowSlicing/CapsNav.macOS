@@ -334,12 +334,16 @@ caps_nav_archive_app_release() {
 
   rm -rf "$ARCHIVE_PATH" "$EXPORT_PATH"
 
+  # 在 CI 显式指定 team 与签名方式，避免依赖工程文件内的开发团队配置。
   xcodebuild \
     -project "$PROJECT_PATH" \
     -scheme "$SCHEME_NAME" \
     -configuration "$CONFIGURATION_NAME" \
     -destination "generic/platform=macOS" \
     -archivePath "$ARCHIVE_PATH" \
+    CODE_SIGN_STYLE=Manual \
+    DEVELOPMENT_TEAM="$TEAM_ID" \
+    CODE_SIGN_IDENTITY="$SIGNING_IDENTITY" \
     archive
 }
 
