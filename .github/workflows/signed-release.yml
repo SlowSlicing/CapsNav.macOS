@@ -28,6 +28,7 @@ jobs:
   publish-signed-release-assets:
     name: Build Signed Release Assets
     runs-on: macos-latest
+    environment: signed-release
 
     steps:
       - name: Checkout repository
