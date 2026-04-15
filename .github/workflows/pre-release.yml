@@ -38,9 +38,15 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const tag = core.getInput('tag');
-            const targetBranch = core.getInput('branch') || 'main';
-            const publishLatest = core.getInput('publish_latest') || 'false';
+            const dispatchInputs = context.payload.inputs || {};
+            const tag = (dispatchInputs.tag || '').trim();
+            if (!tag) {
+              core.setFailed('workflow_dispatch 缺少 tag 输入，请填写已存在的 Release tag（例如 v0.0.2）。');
+              return;
+            }
+
+            const targetBranch = (dispatchInputs.branch || 'main').trim() || 'main';
+            const publishLatest = String(dispatchInputs.publish_latest ?? 'false');
 
             const release = (await github.rest.repos.getReleaseByTag({
               owner,

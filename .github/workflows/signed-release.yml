@@ -52,14 +52,20 @@ jobs:
               targetBranch = 'main';
               publishLatest = 'true';
             } else {
-              const tag = core.getInput('tag');
+              const dispatchInputs = context.payload.inputs || {};
+              const tag = (dispatchInputs.tag || '').trim();
+              if (!tag) {
+                core.setFailed('workflow_dispatch 缺少 tag 输入，请填写已存在的 Release tag（例如 v0.0.2）。');
+                return;
+              }
+
               release = (await github.rest.repos.getReleaseByTag({
                 owner,
                 repo,
                 tag,
               })).data;
-              targetBranch = core.getInput('branch') || 'main';
-              publishLatest = core.getInput('publish_latest') || 'false';
+              targetBranch = (dispatchInputs.branch || 'main').trim() || 'main';
+              publishLatest = String(dispatchInputs.publish_latest ?? 'false');
             }
 
             core.setOutput('release_id', String(release.id));
