@@ -1,10 +1,6 @@
 # Caps Nav
 
-![Version](https://img.shields.io/github/v/release/SlowSlicing/CapsNav.macOS)  
-![License](https://img.shields.io/github/license/SlowSlicing/CapsNav.macOS)  
-![Platform](https://img.shields.io/badge/platform-macOS-blue)  
-![Language](https://img.shields.io/github/languages/top/SlowSlicing/CapsNav.macOS)  
-[![LINUX DO](https://img.shields.io/badge/友链-LINUX%20DO-blue)](https://linux.do/)
+![Version](https://img.shields.io/github/v/release/SlowSlicing/CapsNav.macOS) | ![License](https://img.shields.io/github/license/SlowSlicing/CapsNav.macOS) | ![Platform](https://img.shields.io/badge/platform-macOS-blue) | ![Language](https://img.shields.io/github/languages/top/SlowSlicing/CapsNav.macOS) | [![LINUX DO](https://img.shields.io/badge/友链-LINUX%20DO-blue)](https://linux.do/)
 
 Caps Nav 是一个 macOS 原生菜单栏工具。它把 `Caps Lock` 固定为前缀键，让你在主键区完成光标移动、文本选择、删词、到行首/行尾等常见文本编辑动作，减少手离开字母区去找方向键和组合键的次数。
 
