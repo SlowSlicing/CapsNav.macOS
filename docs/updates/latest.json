@@ -1,8 +1,8 @@
 {
-  "version": "0.0.4",
-  "publishedAt": "2026-04-15T06:48:57Z",
+  "version": "0.0.5",
+  "publishedAt": "2026-04-16T01:47:46Z",
   "minimumSystemVersion": "13.0",
-  "pageURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/tag/v0.0.4",
-  "downloadURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/download/v0.0.4/Caps-Nav-0.0.4-1-macOS-universal.dmg",
-  "notesMarkdown": "# 更新日志\r\n\r\n## 2026-04-15\r\n\r\n### feat: 添加发布签名资产的工作流，支持手动触发和自动发布\r\n\r\n- 提交：`3bbf906dc529c5b3539d7e398c60ba5799d3bd41`\r\n- 作者：大漠知秋\r\n- 类型：`feat`\r\n\r\n### 新增\r\n\r\n- 新增正式发布工作流 [`.github/workflows/signed-release.yml`](.github/workflows/signed-release.yml)：\r\n  - 支持在 `release.published` 事件下自动触发。\r\n  - 支持 `workflow_dispatch` 手动补跑。\r\n  - 覆盖正式包发布全流程：Developer ID 签名、公证、票据贴附、上传 Release 资产。\r\n  - 支持按需更新 `docs/updates/latest.json`。\r\n\r\n### 调整\r\n\r\n- 调整 [`.github/workflows/pre-release.yml`](.github/workflows/pre-release.yml)：\r\n  - 触发方式改为仅手动触发（`workflow_dispatch`）。\r\n  - 精简 release 元数据解析逻辑，统一基于输入 tag 获取 release。\r\n  - `latest.json` 版本比较逻辑放宽为只要文件存在即可执行比较。\r\n\r\n- 更新版本号（Marketing Version）为 `0.0.4`：\r\n  - [Caps Nav.xcodeproj/project.pbxproj](Caps%20Nav.xcodeproj/project.pbxproj)\r\n\r\n### 文档\r\n\r\n- 完善发布文档 [docs/release/发布与打包.md](docs/release/%E5%8F%91%E5%B8%83%E4%B8%8E%E6%89%93%E5%8C%85.md)：\r\n  - 明确 dev 包与 signed 正式包的定位差异。\r\n  - 新增 signed 发布所需 GitHub Secrets 清单。\r\n  - 补充自动触发与手动补跑流程说明。\r\n  - 更新发布步骤中的工作流名称与执行预期。\r\n\r\n### 影响说明\r\n\r\n- 本次提交主要影响 CI/CD 发布流程与发布文档。\r\n- 应用业务功能无直接改动。\r\n\r\n**Full Changelog**: https://github.com/SlowSlicing/CapsNav.macOS/compare/v0.0.3...v0.0.4"
+  "pageURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/tag/v0.0.5",
+  "downloadURL": "https://github.com/SlowSlicing/CapsNav.macOS/releases/download/v0.0.5/Caps-Nav-0.0.5-1-macOS-universal.dmg",
+  "notesMarkdown": "### fix: 修复悬浮帮助框在顶部放置时显示不全的问题\r\n\r\n- 作者：大漠知秋\r\n- 类型：`fix`\r\n\r\n### 修复\r\n\r\n- 修复 `.bottom` 放置的 y 坐标与 `.top` 完全相同的 bug，现在底部放置会正确贴靠屏幕底部。\r\n\r\n### 优化\r\n\r\n- 重构顶部放置时的列数计算逻辑：\r\n  - 不再硬编码为 1 列或 2 列，改为根据快捷键条目数量和屏幕可用宽度动态计算最优列数。\r\n  - 算法从 1 列开始逐步递增，直到内容高度可以在面板最大高度内完整展示。\r\n  - 每列最小宽度 260pt，面板宽度随列数自适应扩展，最大不超过可用宽度的 90%。\r\n- 条目少时保持窄面板单列布局，条目多时自动扩展为多列，避免内容被截断。\r\n\r\n### 影响范围\r\n\r\n- `Caps Nav/Features/Overlay/PrefixIndicatorLayoutCalculator.swift`\r\n  - 提取布局常量为静态属性，拆分 `topLayout` / `sideOrBottomLayout` 两条计算路径。\r\n  - 顶部放置新增动态列数算法。\r\n- `Caps Nav/Features/Overlay/PrefixIndicatorController.swift`\r\n  - 修正 `.bottom` 定位坐标。\r\n\r\n### 影响说明\r\n\r\n- 仅影响悬浮帮助框的布局与定位，不涉及业务逻辑变更。\r\n\r\n**Full Changelog**: https://github.com/SlowSlicing/CapsNav.macOS/compare/v0.0.4...v0.0.5"
 }
