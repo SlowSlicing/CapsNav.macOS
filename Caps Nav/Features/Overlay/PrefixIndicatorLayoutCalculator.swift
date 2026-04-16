@@ -9,6 +9,12 @@ struct PrefixIndicatorLayout {
 }
 
 enum PrefixIndicatorLayoutCalculator {
+    private static let headerHeight: CGFloat = 154
+    private static let rowHeight: CGFloat = 54
+    private static let contentBottomPadding: CGFloat = 14
+    private static let minColumnWidth: CGFloat = 260
+    private static let columnSpacing: CGFloat = 12
+
     static func layout(
         visibleFrame: CGRect,
         placement: PrefixIndicatorPlacement,
@@ -26,30 +32,74 @@ enum PrefixIndicatorLayoutCalculator {
 
         let availableWidth = max(visibleFrame.width - 56, 320)
         let availableHeight = max(visibleFrame.height - 88, 240)
-        let usesSingleColumn = placement == .top && (availableWidth < 1120 || availableHeight < 700)
-        let columnCount = usesSingleColumn ? 1 : 2
-        let rows = Int(ceil(Double(helpEntryCount) / Double(columnCount)))
 
-        let preferredWidth: CGFloat
         if placement == .top {
-            preferredWidth = usesSingleColumn
-                ? min(max(availableWidth * 0.56, 420), 500)
-                : min(max(availableWidth * 0.58, 560), 620)
-        } else {
-            preferredWidth = min(max(availableWidth * 0.46, 520), 640)
+            return topLayout(
+                availableWidth: availableWidth,
+                availableHeight: availableHeight,
+                helpEntryCount: helpEntryCount
+            )
         }
 
-        let headerHeight: CGFloat = placement == .top ? 154 : 138
-        let rowHeight: CGFloat = placement == .top ? 54 : 50
-        let contentBottomPadding: CGFloat = 14
-        let rawHeight = headerHeight + (CGFloat(rows) * rowHeight) + contentBottomPadding
-        let maxHeight = placement == .top
-            ? min(availableHeight * 0.62, 520)
-            : min(availableHeight * 0.92, 720)
+        return sideOrBottomLayout(
+            availableWidth: availableWidth,
+            availableHeight: availableHeight,
+            helpEntryCount: helpEntryCount
+        )
+    }
+
+    private static func topLayout(
+        availableWidth: CGFloat,
+        availableHeight: CGFloat,
+        helpEntryCount: Int
+    ) -> PrefixIndicatorLayout {
+        let maxHeight = min(availableHeight * 0.72, 600)
+        let maxColumns = max(Int(floor((availableWidth * 0.9 + columnSpacing) / (minColumnWidth + columnSpacing))), 1)
+
+        var bestColumnCount = 1
+        for cols in 1...maxColumns {
+            let rows = Int(ceil(Double(helpEntryCount) / Double(cols)))
+            let height = headerHeight + CGFloat(rows) * rowHeight + contentBottomPadding
+            bestColumnCount = cols
+            if height <= maxHeight {
+                break
+            }
+        }
+
+        let rows = Int(ceil(Double(helpEntryCount) / Double(bestColumnCount)))
+        let rawHeight = headerHeight + CGFloat(rows) * rowHeight + contentBottomPadding
         let panelHeight = min(max(rawHeight, 228), maxHeight)
 
+        let panelWidth: CGFloat
+        if bestColumnCount == 1 {
+            panelWidth = min(max(availableWidth * 0.56, 420), 500)
+        } else {
+            let contentWidth = CGFloat(bestColumnCount) * minColumnWidth + CGFloat(bestColumnCount - 1) * columnSpacing + 32
+            panelWidth = min(max(contentWidth, 560), availableWidth * 0.9)
+        }
+
         return PrefixIndicatorLayout(
-            panelWidth: preferredWidth.rounded(.up),
+            panelWidth: panelWidth.rounded(.up),
+            panelHeight: panelHeight.rounded(.up),
+            columnCount: bestColumnCount,
+            showsScrollableHelpList: false
+        )
+    }
+
+    private static func sideOrBottomLayout(
+        availableWidth: CGFloat,
+        availableHeight: CGFloat,
+        helpEntryCount: Int
+    ) -> PrefixIndicatorLayout {
+        let columnCount = 2
+        let rows = Int(ceil(Double(helpEntryCount) / Double(columnCount)))
+        let rawHeight = headerHeight + CGFloat(rows) * rowHeight + contentBottomPadding
+        let maxHeight = min(availableHeight * 0.92, 720)
+        let panelHeight = min(max(rawHeight, 228), maxHeight)
+        let panelWidth = min(max(availableWidth * 0.46, 520), 640)
+
+        return PrefixIndicatorLayout(
+            panelWidth: panelWidth.rounded(.up),
             panelHeight: panelHeight.rounded(.up),
             columnCount: columnCount,
             showsScrollableHelpList: false

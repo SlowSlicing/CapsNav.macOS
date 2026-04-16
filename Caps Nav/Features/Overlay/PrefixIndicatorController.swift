@@ -129,7 +129,7 @@ final class PrefixIndicatorController {
             y = boundedFrame.maxY - panel.frame.height
         case .bottom:
             x = boundedFrame.midX - (panel.frame.width / 2)
-            y = boundedFrame.maxY - panel.frame.height
+            y = boundedFrame.minY
         case .left:
             x = boundedFrame.minX
             y = boundedFrame.midY - (panel.frame.height / 2)
