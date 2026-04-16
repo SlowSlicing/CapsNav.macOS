@@ -1,4 +1,4 @@
-# Caps Nav
+<h1 align="center">Caps Nav</h1>
 
 <p align="center">
   <img src="https://img.shields.io/github/v/release/SlowSlicing/CapsNav.macOS" />
